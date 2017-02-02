@@ -1,0 +1,44 @@
+doctype html
+html
+  head
+    title The BoarD
+    link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.2.3/css/bulma.min.css")
+  body
+    - import std.array;
+    .is-fullwidth
+      .hero.is-large.is-dark.is-bold
+        .hero-body
+          .container.has-text-centered
+            h1.title.is-1 The BoarD
+            h4.subtitle.is-4 A board written by D.
+      .container
+        - foreach (post; posts)
+          section.section
+            .card.is-fullwidth
+              .card-header
+                header.card-header-title= post.title
+                a.card-header-icon(href="/posts/#{post.id}/delete") 削除
+              .card-content
+                .content
+                  p
+                    - auto text = post.text.split("\n").array;
+                    - foreach (line; text[0..$-1])
+                      = line
+                      <br>
+                    = text[$-1]
+              .card-footer
+                .card-footer-item= post.author
+                .card-footer-item
+                  .small= post.printPostedTime()
+        .section
+          form(action="/posts", method="POST")
+            label.label Title
+            p.control
+              input.input(type="text", name="title", required)
+            label.label Author
+            p.control
+              input.input(type="text", name="author", required)
+            .control
+              textarea.textarea(rows="4", name="text", required)
+            .control
+              input.button.is-primary(type="submit", value="post")

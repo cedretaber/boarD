@@ -1,0 +1,1 @@
+INSERT INTO posts VALUES ((SELECT COUNT(*) FROM posts) + 1, ?, ?, ?, now())

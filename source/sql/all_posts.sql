@@ -1,0 +1,1 @@
+SELECT title, author, text, posted_at FROM posts ORDER BY id DESC
