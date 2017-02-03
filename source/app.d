@@ -10,7 +10,7 @@ immutable connectionUri = "postgresql://root:root@localhost:5432/board";
 
 shared PostgresClient client;
 
-shared static this()
+void main()
 {
 	client = new shared PostgresClient(connectionUri, 4);
 
@@ -28,6 +28,8 @@ shared static this()
 	listenHTTP(settings, router);
 
 	logInfo("Please open http://127.0.0.1:8080/ in your browser.");
+
+	runEventLoop();
 }
 
 struct Post
@@ -55,7 +57,7 @@ struct Post
 void indexPosts(HTTPServerRequest req, HTTPServerResponse res)
 {
 	auto conn = client.lockConnection();
-	scope (exit) destroy(conn);
+	scope (exit) delete conn;
 
 	Post[] posts;
 	auto rs = conn.execStatement("SELECT id, title, author, text, posted_at FROM posts ORDER BY id DESC", ValueFormat.BINARY);
@@ -75,31 +77,33 @@ void indexPosts(HTTPServerRequest req, HTTPServerResponse res)
 
 void createPost(HTTPServerRequest req, HTTPServerResponse res)
 {
+	enforceHTTP("title" in req.form, HTTPStatus.badRequest, "Form must have key of 'title'.");
+	enforceHTTP("author" in req.form, HTTPStatus.badRequest, "Form must have key of 'author'.");
+	enforceHTTP("text" in req.form, HTTPStatus.badRequest, "Form must have key of 'text'.");
+
 	auto conn = client.lockConnection();
-	scope (exit) destroy(conn);
+	scope (exit) delete conn;
 
 	immutable title = req.form["title"];
 	immutable author = req.form["author"];
 	immutable text = req.form["text"];
 
-	if (title != "" && author != "" && text != "") {
-		QueryParams qps;
-		qps.sqlCommand = "INSERT INTO posts VALUES ((SELECT COUNT(*) FROM posts) + 1, $1, $2, $3, now())";
-		qps.argsFromArray = [title, author, text];
-		conn.execParams(qps);
-	}
+	QueryParams qps;
+	qps.sqlCommand = "INSERT INTO posts VALUES ((SELECT MAX(id) FROM posts) + 1, $1, $2, $3, now())";
+	qps.argsFromArray = [title, author, text];
+	conn.execParams(qps);
 
 	res.redirect("/");
 }
 
 void deletePost(HTTPServerRequest req, HTTPServerResponse res)
 {
-	auto conn = client.lockConnection();
-	scope (exit) destroy(conn);
-
 	enforceHTTP("id" in req.params, HTTPStatus.badRequest, "Query string must have key of 'id'.");
 
-	auto postId = req.params["id"];
+	auto conn = client.lockConnection();
+	scope (exit) delete conn;
+
+	immutable postId = req.params["id"];
 
 	QueryParams qps;
 	qps.sqlCommand = "DELETE FROM posts WHERE id = $1::bigint";
